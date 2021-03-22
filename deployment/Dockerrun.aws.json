@@ -1,0 +1,30 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "tabletop-backend",
+      "image": "487545334138.dkr.ecr.ap-southeast-1.amazonaws.com/tabletop-backend:latest",
+      "memory": 256,
+      "memoryReservation": 128,
+      "portMappings": [
+        {
+          "hostPort": 8000,
+          "containerPort": 8000
+        }
+      ],
+      "links": ["tabletop-auth"]
+    },
+    {
+      "name": "tabletop-auth",
+      "image": "487545334138.dkr.ecr.ap-southeast-1.amazonaws.com/tabletop-auth:latest",
+      "memory": 512,
+      "memoryReservation": 128,
+      "portMappings": [
+        {
+          "hostPort": 8080,
+          "containerPort": 8080
+        }
+      ]
+    }
+  ]
+}

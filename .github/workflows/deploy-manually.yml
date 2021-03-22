@@ -1,0 +1,61 @@
+name: Deploy tabletop-v2-manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment that will be deployed"
+        required: true
+        default: "dev"
+
+jobs:
+  build:
+    name: AWS
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python_version: [3.9.1]
+    steps:
+      - name: Check user permission
+        id: check-admin-permission
+        uses: scherermichael-oss/action-has-permission@master
+        with:
+          required-permission: admin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check user write permission
+        id: check-write-permission
+        uses: scherermichael-oss/action-has-permission@master
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Generate deployment package
+        run: |
+          zip -r deployment.zip ./  -x \"*.git*\" -x \".env\" -x \"static/*\" -x \"*.zip\
+
+      - name: The permission check failed (write permission)
+        if: "! steps.check-write-permission.outputs.has-permission"
+        run: echo "Sorry! Your permissions are insufficient."
+
+      - name: The permission check failed (admin permission)
+        if: "! steps.check-admin-permission.outputs.has-permission && (github.event.inputs.env == 'stage' || github.event.inputs.env == 'prod')"
+        run: echo "Sorry! Your permissions are insufficient."
+
+      - name: Deploy to EB
+        if: (steps.check-write-permission.outputs.has-permission && (github.event.inputs.env == 'test' || github.event.inputs.env == 'dev')) || (steps.check-admin-permission.outputs.has-permission  && (github.event.inputs.env == 'stage' || github.event.inputs.env == 'prod'))
+        uses: einaregilsson/beanstalk-deploy@v10
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: tabletop-v2
+          environment_name: tabletop-v2-${{ github.event.inputs.env }}
+          version_label: ${{ github.sha }}
+          region: ap-southeast-1
+          deployment_package: deployment.zip
+          use_existing_version_if_available: true
